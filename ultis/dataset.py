@@ -2,7 +2,7 @@
 - 需要的tensorflow 版本:tf.1.14
 - 组织dataset 的输入map
 - 对数据的处理，以及对dataset 的组织
-- 对图像大小的处理方式
+- 对图像大小的处理方式: 使用 fixed_ratio_resize 改变图像的大小
 '''
 
 import os
@@ -13,6 +13,7 @@ import PIL
 from PIL import  Image
 import matplotlib.pyplot as plt
 import tensorflow as tf
+
 tf.enable_eager_execution()
 
 def compose_file_label(input_path, label_path):
@@ -38,15 +39,15 @@ def compose_file_label(input_path, label_path):
     labels = []
     for folder in folders:
         full_folder = os.path.join(input_path, folder)
-        sub_labels = [label_map[folder]] * len(os.listdir(full_folder))
-        sub_folder_names = glob.glob(os.path.join(full_folder,"*"))
+        sub_labels = [label_map[folder]] * len(os.listdir(full_folder))  # 子文件夹的label为该文件夹的文件个数 * 文件夹名对应的字典值
+        sub_folder_names = glob.glob(os.path.join(full_folder, "*")) # 文件名为其路径
         labels += sub_labels
         file_names += sub_folder_names
-    filenames_tensor = tf.constant(file_names)
+    filenames_tensor = tf.constant(file_names)  # 将文件名和label 转成Tensor形式
     labels_tensor = tf.constant(labels)
     return filenames_tensor, labels_tensor
 
-def _read_py_function(filename, label):
+def _read_py_function(filename, label, resize_shape):
     """
     由于dataset中要用的函数需要为tf的函数，这边的作用是使用tf以外的python库文件
     :param filename: 文件名的Tensor形式
@@ -55,24 +56,27 @@ def _read_py_function(filename, label):
     """
     decode_filename = filename.numpy().decode() # 将tf.eager_tensor转成numpy 再解码
     image_decoded = Image.open(decode_filename)
-    image_decoded = np.array(image_decoded.convert("RGB")) # 转成3通道图像
+    # TODO 关于如何reshape image
+    image_decoded = image_decoded.convert("RGB")# 转成3通道图像
+    image_decoded = fixed_ratio_resize(image_decoded, (resize_shape[0], resize_shape[1]))
+    image_decoded = np.array(image_decoded) # 转成array的形式
     return image_decoded, label
 
 def _preprocess_function(image_decoded, label,class_num=2,is_training=True,resize_shape=[224, 224, 3]):
     """
     这边写预处理函数
-    :param image_decoded: 已经读取的文件
+    :param image_decoded: 已经读取的图像
     :param label:
     :param class_num
     :return:
     """
-    # TODO
-    # reshap image and preprocess image
-    tf_image = tf.reshape(image_decoded, resize_shape)
+    tf_image = image_decoded
     if is_training:
         tf_image = tf.image.random_flip_left_right(tf_image)
         tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
+    # TODO 如何预处理图像
     tf_image = preprocess_image(tf_image)
+    # TODO 将label转成one_hot形式
     tf_label = tf.one_hot(label, class_num)
     return tf_image, tf_label
 
@@ -102,9 +106,11 @@ def make_dataset_from_filenames(input_path,label_path,class_num=2,batch_size=1,i
     """
     filenames_tensor, labels_tensor = compose_file_label(input_path, label_path)
     dataset = tf.data.Dataset.from_tensor_slices((filenames_tensor, labels_tensor))
+
+    # 这边的lambda 属于参数捕获进去，从dataset中捕获filename 和label输入到 _read_py_function
     dataset = dataset.map(
         lambda filename, label: tuple(tf.py_function(
-            _read_py_function, [filename, label], [tf.uint8, label.dtype])))  # py_func 不能用于eager_tensor
+            _read_py_function, [filename, label, resize_shape], [tf.uint8, label.dtype])))  # py_func 不能用于eager_tensor
     dataset = dataset.map(lambda image, label: _preprocess_function(image, label, class_num, is_training, resize_shape))
     dataset = dataset.batch(batch_size)
     if shuffle:
@@ -122,17 +128,20 @@ def fixed_ratio_resize(image, input_shape):
     raw_w, raw_h = image.size
     # 网络的输入的大小
     input_w, input_h = input_shape
-    ratio = min(input_w / raw_w, input_h / raw_h)
-    new_w = int(raw_w * ratio)
-    new_h = int(raw_h * ratio)
-    dx = (input_w - new_w) // 2
-    dy = (input_h - new_h) // 2
-    image_data = 0
-    # 关于为啥是128? 中心化后为0？
-    # 图像长宽比不变 resize成正确的大小
-    image = image.resize((new_w, new_h), Image.BICUBIC)
-    new_image = Image.new('RGB', (input_w, input_h), (128, 128, 128))  # 三个通道都填128
-    new_image.paste(image, (dx, dy))  #   # 图片在正中心,即若 dy = 50,则上下各填充50个像素
+    if input_h == raw_h and input_w == raw_w:
+        return image
+    else:
+        ratio = min(input_w / raw_w, input_h / raw_h)
+        new_w = int(raw_w * ratio)
+        new_h = int(raw_h * ratio)
+        dx = (input_w - new_w) // 2
+        dy = (input_h - new_h) // 2
+        image_data = 0
+        # 关于为啥是128? 中心化后为0？
+        # 图像长宽比不变 resize成正确的大小
+        image = image.resize((new_w, new_h), Image.BICUBIC)
+        new_image = Image.new('RGB', (input_w, input_h), (128, 128, 128))  # 三个通道都填128
+        new_image.paste(image, (dx, dy))  #   # 图片在正中心,即若 dy = 50,则上下各填充50个像素
 
-    return new_image
+        return new_image
 

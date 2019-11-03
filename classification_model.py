@@ -42,6 +42,7 @@ class cls_model(object):
                                                          batch_size=self.config.batch_size,
                                                          class_num=self.config.class_num,
                                                          resize_shape=input_shape,
+                                                         is_training=True,
                                                          shuffle=True)
         if self.config.val_folder_path is not None:
             self.val_dataset = make_dataset_from_filenames(input_path=self.config.val_folder_path,
@@ -49,6 +50,7 @@ class cls_model(object):
                                                            batch_size=self.config.batch_size,
                                                            class_num=self.config.class_num,
                                                            resize_shape=input_shape,
+                                                           is_training=False,
                                                            shuffle=False)
         if self.config.load_pretrained:
             # 读取模型结构

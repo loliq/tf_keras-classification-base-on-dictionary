@@ -20,6 +20,7 @@ tf.enable_eager_execution()
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
 import json
+import matplotlib.pyplot as plt
 from losses_and_metrics import multi_category_focal_loss_class_num
 """
 为了序列化方便，现在开始统一使用 save_weight 存 + json 文件存结构
@@ -74,6 +75,9 @@ class cls_model(object):
             return 0.001 * np.math.pow(0.9, np.floor((epoch - 200) / 4))
     def train(self):
         # TODO 配置网络训练参数
+        # self.model.compile(optimizer=keras.optimizers.Adam(self.config.base_lr),
+        #                    loss= multi_category_focal_loss_class_num(self.class_nums),
+        #                    metrics=['categorical_accuracy'])
         self.model.compile(optimizer=keras.optimizers.Adam(self.config.base_lr),
                            loss='categorical_crossentropy',
                            metrics=['categorical_accuracy'])
@@ -84,6 +88,7 @@ class cls_model(object):
                                           callbacks=self.call_backs,
                                           validation_data=self.val_dataset
                                           )
+        self._plot_train_msg()
     def _get_class_num(self):
         """
 
@@ -109,7 +114,36 @@ class cls_model(object):
         print(class_nums)
         return class_nums
 
-    def test_image(self,image_path):
+    def _plot_train_msg(self):
+        acc = self.history.history['acc']
+        val_acc = self.history.history['val_acc']
+
+        loss = self.history.history['loss']
+        val_loss = self.history.history['val_loss']
+
+        plt.figure(figsize=(8, 8))
+        plt.subplot(2, 1, 1)
+        plt.plot(acc, label='Training Accuracy')
+        plt.plot(val_acc, label='Validation Accuracy')
+        plt.ylim([0.8, 1])
+        plt.plot([0, 0],
+                 plt.ylim(), label='Start Train')
+        plt.legend(loc='lower right')
+        plt.title('Training and Validation Accuracy')
+
+        plt.subplot(2, 1, 2)
+        plt.plot(loss, label='Training Loss')
+        plt.plot(val_loss, label='Validation Loss')
+        plt.ylim([0, 1.0])
+        plt.plot([0, 0],
+                 plt.ylim(), label='Start Train')
+        plt.legend(loc='upper right')
+        plt.title('Training and Validation Loss')
+        plt.xlabel('epoch')
+        plt.savefig(self.config.logdir + "/train_line.jpg")
+        plt.show()
+
+    def test_image(self, image_path):
         """
 
         :param image_path:

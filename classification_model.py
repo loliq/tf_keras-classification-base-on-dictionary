@@ -22,6 +22,8 @@ from tensorflow.python.framework import graph_io
 import json
 import matplotlib.pyplot as plt
 from losses_and_metrics import multi_category_focal_loss_class_num
+from sklearn.metrics import confusion_matrix
+
 """
 为了序列化方便，现在开始统一使用 save_weight 存 + json 文件存结构
 """
@@ -37,6 +39,7 @@ class cls_model(object):
         self.lr_decay = keras.callbacks.LearningRateScheduler(self._learning_rate_schedule)
         self.logger = keras.callbacks.TensorBoard(self.config.logdir)
         self.call_backs = [self.check_point, self.lr_decay, self.logger]
+        self.label_map = self._get_label_map()
         # TODO 创建dataset
         self.train_dataset = make_dataset_from_filenames(input_path=self.config.train_folder_path,
                                                          label_path=self.config.label_path,
@@ -96,23 +99,24 @@ class cls_model(object):
         """
         # class_num_dict 是
         class_num_dict = {}
-        label_path = self.config.label_path
-        with open(label_path, 'r') as  file:
-            js = file.read()
-            label_map = json.loads(js)
         # label_map是文件夹名称对应的缺陷的编号
         for folder in os.listdir(self.config.train_folder_path):
             if os.path.isdir(os.path.join(self.config.train_folder_path, folder)):
-                if label_map[folder] in class_num_dict:
-                    class_num_dict[label_map[folder]] += len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
+                if self.label_map[folder] in class_num_dict:
+                    class_num_dict[self.label_map[folder]] += len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
                 else:
-                    class_num_dict[label_map[folder]] = len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
+                    class_num_dict[self.label_map[folder]] = len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
         print(class_num_dict)
         keys = list(class_num_dict.keys())
         keys.sort()  # 排序
         class_nums = [class_num_dict[i] for i in keys]
         print(class_nums)
         return class_nums
+    def _get_label_map(self):
+        with open(self.config.label_path, 'r') as  file:
+            js = file.read()
+            label_map = json.loads(js)
+        return label_map
 
     def _plot_train_msg(self):
         acc = self.history.history['acc']
@@ -155,6 +159,32 @@ class cls_model(object):
         image = tf.expand_dims(image, 0)
         result = self.model.predict()
         return
+
+    # TODO 测试混淆矩阵
+    def plot_cross_entropy_dataset(self, dataset_name):
+        """
+        从数据集
+        :param dataset_name:
+        :return:
+        """
+
+        gt = []
+        pred = []
+        for image, label in dataset_name:
+            # result = [batchsize, class_num] if multi-classification
+            # result = [batchsize, 1] if binary_classification
+            result = self.model.predict(image).numpy()
+            # 按行求取最大值索引，即为每一个数据的预测的的类别
+            result = np.argmax(result, axis=1)
+            pred += result.tolist()
+            g_true =  label.numpy()
+            # # 按行求取最大值索引，即为每一个数据的标签
+            g_true = np.argmax(g_true, axis=1)
+            gt += g_true.tolist()
+        # label_map 的键值即为
+        label_names = self.label_map.keys()
+        cf_metrix = confusion_matrix(gt, pred, label_names)
+        return  cf_metrix
 
     def save_to_pb(self, pb_name):
         def freeze_graph(graph, session, output_node_names, model_name):

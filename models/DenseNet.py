@@ -18,7 +18,9 @@ from tensorflow.keras.models import Model, load_model
 # In[ ]:
 
 
+# TODO 设置正则化系数
 global_regulizer = keras.regularizers.l2(0.00001)
+dense_regulizer =  keras.regularizers.l2(0.0001)
 
 
 # ###  1. 定义卷积层
@@ -51,7 +53,7 @@ def conv_block(X, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
     # 3x3 Convolution
     X = BatchNormalization(axis = 3, name=bn_name_base.format(1))(X)
     X = Activation('relu',name = relu_name_base.format(1))(X)
-    X = Conv2D(nb_filter, (3,3), name = conv_name_base.format(2), padding='same', use_bias=False, kernel_regularizer=global_regulizer)(X)
+    X = Conv2D(nb_filter, (3, 3), name = conv_name_base.format(2), padding='same', use_bias=False, kernel_regularizer=global_regulizer)(X)
     
     if dropout_rate:
         X = Dropout(dropout_rate)(X)
@@ -196,7 +198,7 @@ def DenseNet_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reduction=0
     X = Activation('relu', name = 'conv1/relu')(X)
     
     X = ZeroPadding2D((1,1))(X)
-    X = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding = 'valid',name='pool1')(X)
+    X = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid', name='pool1')(X)
     
     # Add dense blocks
     for block_idx in range(nb_dense_block - 1):
@@ -211,8 +213,8 @@ def DenseNet_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reduction=0
     X = BatchNormalization(axis = 3, name='bn')(X)
     X = Activation('relu', name='relu')(X)
     X = keras.layers.GlobalAvgPool2D()(X)
-    X = Dense(classes, name = 'fc' + str(classes), activation='softmax',kernel_regularizer=global_regulizer)(X)
-    model = keras.Model(inputs = X_input, outputs = X, name = 'DenseNet_lighter')
+    X = Dense(classes, name = 'fc' + str(classes), activation='softmax',kernel_regularizer=dense_regulizer)(X)
+    model = keras.Model(inputs = X_input, output =X, name= 'DenseNet_lighter')
     
     if weights_path is not None:
         model.load_weights(weights_path)
@@ -248,9 +250,12 @@ def DenseNet_SE_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reductio
     
     X = BatchNormalization(axis = 3, name='bn')(X)
     X = Activation('relu', name='relu')(X)
-    X = keras.layers.GlobalAvgPool2D()(X)
-    X = Dense(classes, name = 'fc' + str(classes), activation='sigmoid',kernel_regularizer=global_regulizer)(X)
-    model = keras.Model(inputs = X_input, outputs = X, name = 'DenseNet_lighter')
+    # X = keras.layers.GlobalAvgPool2D()(X)
+    X = AveragePooling2D(pool_size=(2, 2))(X)
+    X = Flatten()(X)
+    #
+    X = Dense(classes, name = 'fc' + str(classes), activation='sigmoid',kernel_regularizer=dense_regulizer)(X)
+    model = keras.Model(inputs = X_input, outputs=X, name='DenseNet_lighter')
     
     if weights_path is not None:
         model.load_weights(weights_path)

@@ -43,6 +43,7 @@ def compose_file_label(input_path, label_path):
         sub_folder_names = glob.glob(os.path.join(full_folder, "*")) # 文件名为其路径
         labels += sub_labels
         file_names += sub_folder_names
+    # print(labels)
     filenames_tensor = tf.constant(file_names)  # 将文件名和label 转成Tensor形式
     labels_tensor = tf.constant(labels)
     return filenames_tensor, labels_tensor
@@ -71,13 +72,18 @@ def _preprocess_function(image_decoded, label,class_num=2,is_training=True,resiz
     :return:
     """
     tf_image = image_decoded
+    # tf_image = tf.reshape(tf_image, [224, 224, 3])
     if is_training:
         tf_image = tf.image.random_flip_left_right(tf_image)
-        tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
+        # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
     # TODO 如何预处理图像
-    tf_image = preprocess_image(tf_image)
+    tf_image = tf.cast(tf_image, tf.float32)
+    tf_image = tf_image / 255.
+    tf_image -= 0.5
+    tf_image *= 2
+    # tf_image = preprocess_image(tf_image)
     # TODO 将label转成one_hot形式
-    tf_label = tf.one_hot(label, class_num)
+    tf_label = tf.one_hot(label, class_num, 1, 0)
     return tf_image, tf_label
 
 # TODO 定义图像预处理函数
@@ -112,7 +118,7 @@ def make_dataset_from_filenames(input_path,label_path,class_num=2,batch_size=1,i
     # 这边的lambda 属于参数捕获进去，从dataset中捕获filename 和label输入到 _read_py_function
     dataset = dataset.map(
         lambda filename, label: tuple(tf.py_function(
-            _read_py_function, [filename, label, resize_shape], [tf.uint8, label.dtype])))  # py_func 不能用于eager_tensor
+            _read_py_function, [filename, label, resize_shape], [tf.uint8, tf.int32])))  # py_func 不能用于eager_tensor
     dataset = dataset.map(lambda image, label: _preprocess_function(image, label, class_num, is_training, resize_shape))
     dataset = dataset.batch(batch_size)
     if shuffle:
@@ -150,7 +156,7 @@ def fixed_ratio_resize(image, input_shape):
 
 # TODO TF-Record
 
-def parse_single_exmp(serialized_example,process_func,is_training=True, label_num=2,
+def parse_single_exmp(serialized_example,process_func=None,is_training=True, label_num=2,
                       resize_height=224,resize_width=224):
     """
     解析tf.record
@@ -172,15 +178,18 @@ def parse_single_exmp(serialized_example,process_func,is_training=True, label_nu
     tf_image = tf.reshape(tf_image, [224, 224, 3])  # 设置图像的维度
     if is_training:
         tf_image = tf.image.random_flip_left_right(tf_image)
-#         tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
-    tf_image = preprocess_image(tf_image)
+        # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
+    tf_image = tf.cast(tf_image, tf.float32)
+    tf_image = tf_image / 255.
+    tf_image -= 0.5
+    tf_image *= 2
     tf_label = tf.one_hot(tf_label, label_num, 1, 0)  #二分类只需要 0 和1
     return tf_image, tf_label
 
-def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, ):
+def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, classes_num=2):
     dataset = tf.data.TFRecordDataset(filenames)
     # lambda x 取到dataset的serial_sample对象
-    dataset = dataset.map(lambda x: parse_single_exmp(x, is_training=is_training, label_num=2))
+    dataset = dataset.map(lambda x: parse_single_exmp(x, is_training=is_training, label_num=classes_num))
     if is_training:
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.batch(batchsize)

@@ -133,16 +133,16 @@ def create_record_file(label_filenames,output_record_name, instances_per_shard,r
 
 
 if __name__ == '__main__':
-    origin_dir1 = 'H:/02-VTC相关/Tensorflow实验/暗场汇总/1_of_5folds'
-    result_dir = 'H:/02-VTC相关/Tensorflow实验/暗场汇总/record_file'
-    label_map_path = "H:/02-VTC相关/Tensorflow实验/暗场汇总/label_map.txt"
+    origin_dir1 = 'F:/01-datasets/04-VTC/单项不良/明场/1_of_5folds'
+    result_dir = 'F:/01-datasets/04-VTC/单项不良/明场/record_file'
+    label_map_path = "F:/01-datasets/04-VTC/单项不良/明场/label_map.txt"
     train_regrex = result_dir + '/train/train-'
     val_regrex = result_dir + '/val/val-'
     dataSet_regrex = [train_regrex, val_regrex]
     reshape_size = [224, 224, 3]
 
     label_map = load_label_map(label_map_path)
-    train_label_filenames = compose_label_filename(origin_dir1 + '/train', label_map)
+    train_label_filenames = compose_label_filename(origin_dir1 + '/train_augmentation', label_map)
     val_label_filenames = compose_label_filename(origin_dir1 + '/val', label_map)
 
     for regrexName in dataSet_regrex:

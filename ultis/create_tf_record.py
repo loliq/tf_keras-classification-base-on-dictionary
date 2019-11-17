@@ -65,9 +65,10 @@ def float_list_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 def load_label_map(label_map_path):
-    with open(label_map_path, 'r') as  file:
+    with open(label_map_path, 'r') as file:
         js = file.read()
         label_map = json.loads(js)
+        print(label_map)
     return label_map
 
 def compose_label_filename(images_dir, label_map):
@@ -133,9 +134,10 @@ def create_record_file(label_filenames,output_record_name, instances_per_shard,r
 
 
 if __name__ == '__main__':
-    origin_dir1 = 'F:/01-datasets/04-VTC/单项不良/明场/1_of_5folds'
-    result_dir = 'F:/01-datasets/04-VTC/单项不良/明场/record_file'
-    label_map_path = "F:/01-datasets/04-VTC/单项不良/明场/label_map.txt"
+    class_num = 10
+    origin_dir1 = r'H:\01-VTC\01-伯恩\训练用图\1108暗场\5_folds/1_of_5folds'
+    result_dir = r'H:\01-VTC\01-伯恩\训练用图\1108暗场/record_file'
+    label_map_path = r"H:\01-VTC\01-伯恩\训练用图\1108暗场\label_map.txt"
     train_regrex = result_dir + '/train/train-'
     val_regrex = result_dir + '/val/val-'
     dataSet_regrex = [train_regrex, val_regrex]
@@ -144,11 +146,20 @@ if __name__ == '__main__':
     label_map = load_label_map(label_map_path)
     train_label_filenames = compose_label_filename(origin_dir1 + '/train_augmentation', label_map)
     val_label_filenames = compose_label_filename(origin_dir1 + '/val', label_map)
+    # 计算类别分布比例
+    label_distribution = [0]*class_num
+    for _, label in train_label_filenames:
+        label_distribution[label] += 1
+    print(label_distribution)
+
 
     for regrexName in dataSet_regrex:
         path = os.path.dirname(regrexName)
         if not os.path.exists(path):
             os.makedirs(path)
+    with open(result_dir + "\class_num_distribution.txt", 'w') as f:
+        for num in label_distribution:
+            f.write(str(num) + ',')
     instances_per_shard = 500
     create_record_file(train_label_filenames, train_regrex, instances_per_shard, reshape_size)
     create_record_file(val_label_filenames, val_regrex, instances_per_shard, reshape_size)

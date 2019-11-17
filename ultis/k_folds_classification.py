@@ -4,10 +4,11 @@ import shutil
 import argparse
 import numpy as np
 # Create ArgumentParser() object
+from tqdm import tqdm
 parser = argparse.ArgumentParser()
 # Add argument
-parser.add_argument('--data_path', required=True, help='path to original dataset')
-parser.add_argument('--dst_path', required=True, help='path to segment dataset')
+parser.add_argument('--data_path', required=False, default=r'H:\01-VTC\01-伯恩\训练用图\1108暗场\原图', help='path to original dataset')
+parser.add_argument('--dst_path', required=False, default=r'H:\01-VTC\01-伯恩\训练用图\1108暗场\5_folds', help='path to segment dataset')
 parser.add_argument('--num_folds', type=int, help='number of cross_validation folds', default=5)
 args = parser.parse_args()
 
@@ -211,7 +212,7 @@ if __name__ == '__main__':
     label = write_label_text(args.data_path, args.dst_path)
     segment_k_fold(args.data_path, args.dst_path, args.num_folds)
     #
-    for index in range(args.num_folds):
+    for index in tqdm(range(args.num_folds)):
         val_name = "{0}_of_5".format(index + 1)
         nameList = ["{0}_of_5".format(i+1) for i in range(args.num_folds)]
         nameList.remove(val_name)
@@ -232,9 +233,9 @@ if __name__ == '__main__':
     with open(args.dst_path + '/label.txt') as f:
         label_lines = f.readlines()
 
-    #  删除临时文件夹
+    print('delete tmp folders')
     #  创建augmentation 文件夹
-    for index in range(5):
+    for index in tqdm(range(5)):
         raw_path = args.dst_path + '/{0}_of_5folds/train'.format(index + 1)
         train_aug_path = args.dst_path + '/{0}_of_5folds/train_augmentation'.format(index + 1)
         val_aug_path = args.dst_path + '/{0}_of_5folds/val_augmentation'.format(index + 1)

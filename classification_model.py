@@ -12,17 +12,24 @@ from tensorflow import keras
 import numpy as np
 import os
 from models import DenseNet
-from ultis.dataset import make_dataset_from_filenames, preprocess_image
+from ultis.dataset import make_dataset_from_filenames, preprocess_image, make_dataset_tfrecord,anti_process
 from PIL import Image
-from tensorflow.python.util import compat
-from tensorflow.keras.models import Model, load_model
-tf.enable_eager_execution()
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
 import json
+import matplotlib
 import matplotlib.pyplot as plt
-from losses_and_metrics import multi_category_focal_loss_class_num
+from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
+
+tf.enable_eager_execution()
+
+# 设置中文字体和负号正常显示
+plt.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.rcParams['axes.unicode_minus'] = False
+matplotlib.rcParams['figure.figsize'] = (24.0, 16.0)
+from losses_and_metrics import multi_category_focal_loss_class_num
 
 """
 为了序列化方便，现在开始统一使用 save_weight 存 + json 文件存结构
@@ -32,30 +39,50 @@ class cls_model(object):
     def __init__(self, config, input_shape):
         self.config = config
         self.input_shape = input_shape
-        class_nums = self._get_class_num()
+        self.label_map = self._get_label_map()
+        # class_nums = self._get_class_num()
         # 只保存权重
-        self.check_point = keras.callbacks.ModelCheckpoint(self.config.logdir + '/ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',monitor='val_categorical_accuracy',
+        self.check_point = keras.callbacks.ModelCheckpoint(self.config.logdir +
+                                                           '/ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}-val_acc{val_categorical_accuracy:.3f}.h5',
+                                                           monitor='val_categorical_accuracy',
                                                            mode='auto', save_weights_only=True, save_best_only=True)
         self.lr_decay = keras.callbacks.LearningRateScheduler(self._learning_rate_schedule)
         self.logger = keras.callbacks.TensorBoard(self.config.logdir)
         self.call_backs = [self.check_point, self.lr_decay, self.logger]
-        self.label_map = self._get_label_map()
+
         # TODO 创建dataset
-        self.train_dataset = make_dataset_from_filenames(input_path=self.config.train_folder_path,
-                                                         label_path=self.config.label_path,
-                                                         batch_size=self.config.batch_size,
-                                                         class_num=self.config.class_num,
-                                                         resize_shape=input_shape,
-                                                         is_training=True,
-                                                         shuffle=True)
-        if self.config.val_folder_path is not None:
-            self.val_dataset = make_dataset_from_filenames(input_path=self.config.val_folder_path,
-                                                           label_path=self.config.label_path,
-                                                           batch_size=self.config.batch_size,
-                                                           class_num=self.config.class_num,
-                                                           resize_shape=input_shape,
-                                                           is_training=False,
-                                                           shuffle=False)
+
+        # dataset from tf_Record
+        train_file_names = [os.path.join(self.config.train_folder_path, i) for i in os.listdir(self.config.train_folder_path)]
+        print(train_file_names)
+        val_file_names = [os.path.join(self.config.val_folder_path, i) for i in os.listdir(self.config.val_folder_path)]
+        print(val_file_names)
+        self.train_dataset = make_dataset_tfrecord(filenames=train_file_names,
+                                                   batchsize=self.config.batch_size,
+                                                   is_training=True,
+                                                   classes_num=self.config.class_num,
+                                                   resize_shape=self.input_shape)
+        self.val_dataset = make_dataset_tfrecord(filenames=val_file_names,
+                                                 batchsize=self.config.batch_size,
+                                                 is_training=False,
+                                                 classes_num=self.config.class_num,
+                                                 resize_shape=input_shape)
+        # Dataset from folder
+        # self.train_dataset = make_dataset_from_filenames(input_path=self.config.train_folder_path,
+        #                                                  label_path=self.config.label_path,
+        #                                                  batch_size=self.config.batch_size,
+        #                                                  class_num=self.config.class_num,
+        #                                                  resize_shape=input_shape,
+        #                                                  is_training=True,
+        #                                                  shuffle=True)
+        # if self.config.val_folder_path is not None:
+        #     self.val_dataset = make_dataset_from_filenames(input_path=self.config.val_folder_path,
+        #                                                    label_path=self.config.label_path,
+        #                                                    batch_size=self.config.batch_size,
+        #                                                    class_num=self.config.class_num,
+        #                                                    resize_shape=input_shape,
+        #                                                    is_training=False,
+        #                                                    shuffle=False)
         if self.config.load_pretrained:
             # 读取模型结构
             with open(self.config.model_config_path) as json_file:
@@ -81,9 +108,9 @@ class cls_model(object):
         # self.model.compile(optimizer=keras.optimizers.Adam(self.config.base_lr),
         #                    loss= multi_category_focal_loss_class_num(self.class_nums),
         #                    metrics=['categorical_accuracy'])
-        self.model.compile(optimizer=keras.optimizers.Adam(self.config.base_lr),
-                           loss='categorical_crossentropy',
-                           metrics=['categorical_accuracy'])
+        self.model.compile(optimizer=tf.keras.optimizers.RMSprop(lr=self.config.base_lr),
+                loss=multi_category_focal_loss_class_num(classes_num=[360,690,286,74,248,196,184,1536,292,426]),
+                metrics=['categorical_accuracy'])
         if self.config.val_folder_path is not None:
             self.history = self.model.fit(self.train_dataset,
                                           initial_epoch=0,
@@ -119,8 +146,8 @@ class cls_model(object):
         return label_map
 
     def _plot_train_msg(self):
-        acc = self.history.history['acc']
-        val_acc = self.history.history['val_acc']
+        acc = self.history.history['categorical_accuracy']
+        val_acc = self.history.history['val_categorical_accuracy']
 
         loss = self.history.history['loss']
         val_loss = self.history.history['val_loss']
@@ -150,41 +177,53 @@ class cls_model(object):
     def test_image(self, image_path):
         """
 
-        :param image_path:
-        :return:
+        :param image_path: single image
+        :return: ypred, 网络输出的置信度值
         """
         #TODO image_preprocess
         image = np.array(Image.open(image_path))
         image = preprocess_image(image)
         image = tf.expand_dims(image, 0)
-        result = self.model.predict()
-        return
+        y_pred = self.model.predict(image)
+        class_index = np.argmax(y_pred, axis=1)
+        return y_pred
 
     # TODO 测试混淆矩阵
-    def plot_cross_entropy_dataset(self, dataset_name):
+    def evaluate_dataset(self, label_dict, dataset_name):
         """
-        从数据集
+        评估数据集
+        - 存储混淆矩阵
+        - 保存分错的图像
+        :param label_dict: 每一个标签对应的分类名称
         :param dataset_name:
         :return:
         """
+        # 读取最优秀的模型
+
 
         gt = []
         pred = []
-        for image, label in dataset_name:
-            # result = [batchsize, class_num] if multi-classification
-            # result = [batchsize, 1] if binary_classification
-            result = self.model.predict(image).numpy()
-            # 按行求取最大值索引，即为每一个数据的预测的的类别
-            result = np.argmax(result, axis=1)
-            pred += result.tolist()
-            g_true =  label.numpy()
-            # # 按行求取最大值索引，即为每一个数据的标签
-            g_true = np.argmax(g_true, axis=1)
-            gt += g_true.tolist()
-        # label_map 的键值即为
-        label_names = self.label_map.keys()
-        cf_metrix = confusion_matrix(gt, pred, label_names)
-        return  cf_metrix
+        for index, [image, label] in tqdm(enumerate(self.val_dataset)):
+            #     result = [batchsize, class_num] if multi-classification
+            #     result = [batchsize, 1] if binary_classification
+            y_pred = self.model.predict(image)
+            y_pred = np.argmax(y_pred, axis=1)
+            pred += pred.tolist()
+            y_true = np.argmax(label.numpy(), 1).tolist()
+            gt += y_true
+            if y_pred[0] != y_true[0]:
+                raw_image = tf.cast(anti_process(image), tf.uint8)
+                plt.figure()
+                plt.imshow(raw_image[0, ...])
+                plt.title("label is{0}, pred is {1}".format(label_dict[y_true[0]], label_dict[y_pred[0]]))
+                save_path = os.path.join(self.config.logdir, 'wrong classification')
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+                plt.savefig(save_path + '/{}.png'.format(index))
+        label_name = [str(i) for i in range(self.config.class_num)]
+        self._plot_confusion_matrix(label_name, gt, y_pred)
+
+
 
     def save_to_pb(self, pb_name):
         def freeze_graph(graph, session, output_node_names, model_name):
@@ -196,4 +235,49 @@ class cls_model(object):
         session = tf.keras.backend.get_session()
         freeze_graph(session.graph, session, [out.op.name for out in self.model.outputs], pb_name)
         print("freezing end")
+
+
+    def _plot_confusion_matrix(self,labels, y_true, y_pred,fontsize=10, title="Confusion Matrix"):
+        """
+        输入标签名称，输出混淆矩阵的图
+        :param labels:
+        :param y_true:
+        :param y_pred:
+        :param fontsize:
+        :param title:
+        :return:
+        """
+        tick_marks = np.array(range(len(y_true) + len(y_pred))) + 0.5
+        cm = confusion_matrix(y_true, y_pred)
+        np.set_printoptions(precision=2)
+        cm_normalized = cm.astype('float')/cm.sum(axis=1)[:, np.newaxis]
+        plt.figure(figsize=(8,6), dpi=120)
+        ind_array = np.arange(len(labels))
+        x, y = np.meshgrid(ind_array, ind_array)
+        for x_val, y_val in zip(x.flatten(), y.flatten()):
+            c = cm[y_val][x_val]
+            cp = cm_normalized[y_val][x_val]
+            if (c > 0.01):
+                plt.text(x_val, y_val, "%d" %(c,), color='red', fontsize=fontsize, va='top', ha='center')
+                plt.text(x_val, y_val, "%0.4f %s" % (cp,'%'), color='red', fontsize=fontsize, va='bottom', ha='center')
+
+        plt.gca().set_xticks(tick_marks, minor=True)
+        plt.gca().set_yticks(tick_marks, minor=True)
+        plt.gca().xaxis.set_ticks_position('none')
+        plt.gca().yaxis.set_ticks_position('none')
+        plt.grid(True, which='minor', linestyle='-')
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.imshow(cm, interpolation='nearest', cmap=plt.cm.binary)
+        plt.title(title)
+        plt.colorbar()
+        xlocations = np.array(range(len(labels)))
+        plt.xticks(xlocations, labels, rotation=90)
+        plt.yticks(xlocations, labels)
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+        # show confusion matrix
+        plt.show()
+        # save_confusion matrix
+        plt.savefig(self.config.logdir + "/train_line.jpg")
+
 

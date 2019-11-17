@@ -3,6 +3,7 @@
 - 组织dataset 的输入map
 - 对数据的处理，以及对dataset 的组织
 - 对图像大小的处理方式: 使用 fixed_ratio_resize 改变图像的大小
+- 尚未修复的bug ,不知道为什么 model.predict的时候，用make_dataset_from_filenames的时候会卡住， 总之先不管了。。。。
 '''
 
 import os
@@ -100,6 +101,19 @@ def preprocess_image(image):
     image *= 2
     return image
 
+# TODO 将预处理后的图像转回原图
+def anti_process(image):
+    """
+    针对预处理的反预处理，用于从record_dataset中显示图像
+    :param image:
+    :return:
+    """
+    image = image / 2.
+    image += 0.5
+    image *= 255.
+    image = tf.cast(image, tf.uint8)
+    return image
+
 
 def make_dataset_from_filenames(input_path,label_path,class_num=2,batch_size=1,is_training=True,resize_shape=[224, 224, 3],shuffle=True,shuffle_size=6000):
     """
@@ -157,7 +171,7 @@ def fixed_ratio_resize(image, input_shape):
 # TODO TF-Record
 
 def parse_single_exmp(serialized_example,process_func=None,is_training=True, label_num=2,
-                      resize_height=224,resize_width=224):
+                      resize_shape=None):
     """
     解析tf.record
     :param serialized_example:
@@ -175,21 +189,19 @@ def parse_single_exmp(serialized_example,process_func=None,is_training=True, lab
     tf_image = tf.io.decode_raw(features['image_raw'],tf.uint8)#获得图像原始的数据
     tf_label = tf.cast(features['label'], tf.int32)
     # TODO 图像大小不同的时候需要修改
-    tf_image = tf.reshape(tf_image, [224, 224, 3])  # 设置图像的维度
+    tf_image = tf.reshape(tf_image, resize_shape)  # 设置图像的维度
     if is_training:
+        # TODO 这里做训练时候的数据增强
         tf_image = tf.image.random_flip_left_right(tf_image)
         # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
-    tf_image = tf.cast(tf_image, tf.float32)
-    tf_image = tf_image / 255.
-    tf_image -= 0.5
-    tf_image *= 2
+    tf_image = preprocess_image(tf_image)
     tf_label = tf.one_hot(tf_label, label_num, 1, 0)  #二分类只需要 0 和1
     return tf_image, tf_label
 
-def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, classes_num=2):
+def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, classes_num=2, resize_shape=[224,224,3]):
     dataset = tf.data.TFRecordDataset(filenames)
     # lambda x 取到dataset的serial_sample对象
-    dataset = dataset.map(lambda x: parse_single_exmp(x, is_training=is_training, label_num=classes_num))
+    dataset = dataset.map(lambda x: parse_single_exmp(x, is_training=is_training, label_num=classes_num, resize_shape=resize_shape))
     if is_training:
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.batch(batchsize)

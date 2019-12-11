@@ -16,12 +16,17 @@ from  PIL import Image
 import contextlib2
 import numpy as np
 import argparse
+import cv2
 
 parser = argparse.ArgumentParser()
 # Add argument
-parser.add_argument('--data_path', required=True, help='path to original dataset')
-parser.add_argument('--dst_path', required=True, help='path to segment dataset')
-parser.add_argument('--num_folds', type=int, help='number of cross_validation folds', default=5)
+parser.add_argument('--origin_dir', required=True, help='path of original dataset, which has train folder and val folder')
+parser.add_argument('--out_dir', required=True, help='folder path to save tf_record file')
+parser.add_argument('--label_map_path', required=True, help='label map of folders')
+parser.add_argument('--resize_height', type=int, help='number of dataset', default=224)
+parser.add_argument('--resize_width', type=int, help='number of dataset', default=224)
+parser.add_argument('--resize_channel', type=int, help='number of dataset', default=224)
+args = parser.parse_args()
 
 def fixed_ratio_resize(image, input_shape):
     """
@@ -33,7 +38,7 @@ def fixed_ratio_resize(image, input_shape):
     # 原始的图像的大小
     raw_w, raw_h = image.size
     # 网络的输入的大小
-    input_w, input_h = input_shape
+    input_w, input_h, channels = input_shape
     if input_h == raw_h and input_w == raw_w:
         return image
     else:
@@ -46,7 +51,13 @@ def fixed_ratio_resize(image, input_shape):
         # 关于为啥是128? 中心化后为0？
         # 图像长宽比不变 resize成正确的大小
         image = image.resize((new_w, new_h), Image.BICUBIC)
-        new_image = Image.new('RGB', (input_w, input_h), (128, 128, 128))  # 三个通道都填128
+        if channels == 3:
+            new_image = Image.new('RGB', (input_w, input_h), (128, 128, 128))  # 三个通道都填128
+        if channels == 1:
+            new_image = Image.new('L',(input_w, input_h), (128))
+        else:
+            new_image = None
+            assert  new_image != None
         new_image.paste(image, (dx, dy))  #   # 图片在正中心,即若 dy = 50,则上下各填充50个像素
 
         return new_image
@@ -119,10 +130,18 @@ def create_record_file(label_filenames,output_record_name, instances_per_shard,r
             print('Err:no image',image_path)
             continue
         image = Image.open(image_path)
-        image = image.convert("RGB")
-        image = fixed_ratio_resize(image, [reshape_size[0], reshape_size[1]])
-        image_size = image.size
+        if reshape_size[2] == 3:
+            image = image.convert("RGB")
+        elif reshape_size[2] == 1:
+            image = image.convert("L")
+        else:
+            image = None
+            assert image != None
+        image = fixed_ratio_resize(image, reshape_size)
         image_array = np.array(image)
+        if len(image_array.shape) == 3:
+            print(image_array.shape)
+            print(label_filenames[index][0])
         image_raw = image_array.tostring()
         # TODO 此处加入要序列化的对象
         example = tf.train.Example(features=tf.train.Features(feature={
@@ -134,24 +153,30 @@ def create_record_file(label_filenames,output_record_name, instances_per_shard,r
 
 
 if __name__ == '__main__':
-    class_num = 10
-    origin_dir1 = r'H:\01-VTC\01-伯恩\训练用图\1108暗场\5_folds/1_of_5folds'
-    result_dir = r'H:\01-VTC\01-伯恩\训练用图\1108暗场/record_file'
-    label_map_path = r"H:\01-VTC\01-伯恩\训练用图\1108暗场\label_map.txt"
+    # TODO
+    origin_dir1 = args.origin_dir
+    result_dir = args.out_dir
+    label_map_path = args.label_map_path
     train_regrex = result_dir + '/train/train-'
     val_regrex = result_dir + '/val/val-'
     dataSet_regrex = [train_regrex, val_regrex]
-    reshape_size = [224, 224, 3]
+    # TODO
+    reshape_size = [args.resize_height, args.resize_width, args.resize_channel]
 
     label_map = load_label_map(label_map_path)
     train_label_filenames = compose_label_filename(origin_dir1 + '/train_augmentation', label_map)
     val_label_filenames = compose_label_filename(origin_dir1 + '/val', label_map)
     # 计算类别分布比例
-    label_distribution = [0]*class_num
+    label_distribution = {}
     for _, label in train_label_filenames:
-        label_distribution[label] += 1
-    print(label_distribution)
+        if str(label) in label_distribution:
+            label_distribution[str(label)] += 1
+        else:
+            label_distribution[str(label)] = 1
 
+    print(label_distribution)
+    with open(os.path.dirname(result_dir) + '/train_class_num_distribution.txt', 'w') as f:
+        f.write(str(label_distribution))
 
     for regrexName in dataSet_regrex:
         path = os.path.dirname(regrexName)

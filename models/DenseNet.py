@@ -28,7 +28,7 @@ dense_regulizer =  keras.regularizers.l2(0.001)
 # In[17]:
 
 
-def conv_block(X, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4):
+def conv_block(X, stage, branch, nb_filter,global_regulizer,dropout_rate=None, weight_decay=1e-4):
     '''Apply BatchNorm, Relu, bottleneck 1x1 Conv2D, 3x3 Conv2D, and option dropout
         # Arguments
             x: input tensor 
@@ -67,7 +67,8 @@ def conv_block(X, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
 # In[18]:
 
 
-def transition_block(X, stage, nb_filter, compression=1.0, dropout_rate=None, weight_decay=1E-4):
+def transition_block(X, stage, nb_filter,global_regulizer,
+                     compression=1.0, dropout_rate=None, weight_decay=1E-4):
     ''' Apply BatchNorm, 1x1 Convolution, averagePooling, optional compression, dropout 
         # Arguments
             x: input tensor
@@ -115,7 +116,10 @@ def se_block(x, stage,radio=4):
     x_radio = x_radio * x 
     return x_radio
 
-def dense_block(X, stage, nb_layers, nb_filter, growth_rate, dropout_rate=None, weight_decay=1e-4, grow_nb_filters=True):
+def dense_block(X, stage, nb_layers,
+                nb_filter, growth_rate,
+                global_regulizer,
+                dropout_rate=None, weight_decay=1e-4, grow_nb_filters=True):
     ''' Build a dense_block where the output of each conv_block is fed to subsequent ones
         # Arguments
             x: input tensor
@@ -132,9 +136,10 @@ def dense_block(X, stage, nb_layers, nb_filter, growth_rate, dropout_rate=None, 
 
     for i in range(nb_layers):
         branch = i+1
-        x = conv_block(concat_feat, stage, branch, growth_rate, dropout_rate, weight_decay)
+        x = conv_block(concat_feat, stage, branch, growth_rate,global_regulizer, dropout_rate,weight_decay)
         concat_name = 'conv{0}_block{1}_concat'.format(stage, branch)
-        concat_feat = keras.layers.concatenate(inputs = [concat_feat, x], axis=3, name = concat_name)
+        concat_feat = keras.layers.concatenate(inputs=[concat_feat, x],
+                                               axis=3, name=concat_name)
         if grow_nb_filters:
             nb_filter += growth_rate
 
@@ -143,9 +148,14 @@ def dense_block(X, stage, nb_layers, nb_filter, growth_rate, dropout_rate=None, 
 # In[20]:
 
 
-def DenseNet121(nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.0, dropout_rate=0.0, weight_decay=1e-4, classes=1000, weights_path=None):
+def DenseNet121(nb_dense_block=4, Input_shape=[224, 224, 3],
+                growth_rate=32, nb_filter=64, reduction=0.0,
+                dropout_rate=0.0,
+                l2_regularizer_weight=0.0001,
+                weight_decay=1e-4, classes=1000, weights_path=None):
     
-    X_input = Input((224,224, 3))
+    X_input = Input(Input_shape)
+    global_regulizer = keras.regularizers.l2(l2_regularizer_weight)
     X = X_input
     compression = 1.0 - reduction
     nb_dense_block = 4
@@ -153,7 +163,7 @@ def DenseNet121(nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.0, d
     nb_layers = [6,12,24,16] # For DenseNet-121
     # stage 1 
     X = ZeroPadding2D((3,3))(X)
-    X = Conv2D(nb_filter, (7,7), name='conv1/conv',strides=(2,2),use_bias = False,kernel_regularizer=global_regulizer)(X)    
+    X = Conv2D(nb_filter, (7,7), name='conv1/conv',strides=(2,2), use_bias = False,kernel_regularizer=global_regulizer)(X)
     X = BatchNormalization(axis = 3, name = 'conv1/bn')(X)
     X = Activation('relu', name = 'conv1/relu')(X)
     
@@ -173,7 +183,7 @@ def DenseNet121(nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.0, d
     X = BatchNormalization(axis = 3, name='bn')(X)
     X = Activation('relu', name='relu')(X)
     X = keras.layers.GlobalAvgPool2D()(X)
-    X = Dense(classes, name = 'fc' + str(classes), activation=None,kernel_regularizer=global_regulizer)(X)
+    X = Dense(classes, name='fc' + str(classes), activation=None,kernel_regularizer=global_regulizer)(X)
     model = keras.Model(inputs = X_input, outputs = X, name = 'DenseNet121')
     
     if weights_path is not None:
@@ -184,9 +194,15 @@ def DenseNet121(nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.0, d
 
 # In[25]:
 
-def DenseNet_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reduction=0.2, dropout_rate=0.2, weight_decay=1e-4,
-                     classes=1000, weights_path=None):
-    X_input = Input((224, 224, 3))
+def DenseNet_lighter(nb_dense_block=4, input_shape=[224, 224, 3],
+                     growth_rate=12, nb_filter=64,
+                     reduction=0.2, dropout_rate=0.2,
+                     l2_regularizer_weight=0.0001,
+                     weight_decay=1e-4,
+                     classes=1000,
+                     weights_path=None):
+    global_regulizer = keras.regularizers.l2(l=l2_regularizer_weight)
+    X_input = Input(input_shape)
     X = X_input
     compression = 1.0 - reduction
     nb_dense_block = 4
@@ -205,14 +221,23 @@ def DenseNet_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reduction=0
     # Add dense blocks
     for block_idx in range(nb_dense_block - 1):
         stage = block_idx + 2
-        X, nb_filter = dense_block(X, stage, nb_layers[block_idx], nb_filter, growth_rate, dropout_rate=dropout_rate,
+        X, nb_filter = dense_block(X, stage, nb_layers[block_idx],
+                                   nb_filter, growth_rate,
+                                   dropout_rate=dropout_rate,
+                                   global_regulizer=global_regulizer,
                                    weight_decay=weight_decay)
         # Add transition_block
-        X = transition_block(X, stage, nb_filter, compression=compression, dropout_rate=dropout_rate,
+        X = transition_block(X, stage, nb_filter,
+                             compression=compression,
+                             dropout_rate=dropout_rate,
+                             global_regulizer=global_regulizer,
                              weight_decay=weight_decay)
         nb_filter = int(nb_filter * compression)
     final_stage = stage + 1
-    X, nb_filter = dense_block(X, final_stage, nb_layers[-1], nb_filter, growth_rate, dropout_rate=dropout_rate,
+    X, nb_filter = dense_block(X, final_stage, nb_layers[-1],
+                               nb_filter, growth_rate,
+                               dropout_rate=dropout_rate,
+                               global_regulizer=global_regulizer,
                                weight_decay=weight_decay)
 
     X = BatchNormalization(axis=3, name='bn')(X)
@@ -220,7 +245,6 @@ def DenseNet_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reduction=0
     X = keras.layers.GlobalAvgPool2D()(X)
     X = Dense(classes, name='fc' + str(classes), activation='softmax', kernel_regularizer=global_regulizer)(X)
     model = keras.Model(inputs=X_input, outputs=X, name='DenseNet_lighter')
-
     if weights_path is not None:
         model.load_weights(weights_path)
 
@@ -268,17 +292,7 @@ def DenseNet_SE_lighter(nb_dense_block=4, growth_rate=12, nb_filter=64, reductio
     return model
 
 
-# ###  4. 定义预处理函数
 
-# In[26]:
-
-#
-# if __name__ == '__main__':
-#     model = DenseNet_lighter(reduction=0.5, classes = 2)
-#     model.summary()
-#
-#
-# # In[ ]:
 
 
 

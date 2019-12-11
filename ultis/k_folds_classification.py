@@ -3,12 +3,13 @@ import os
 import shutil
 import argparse
 import numpy as np
+import re
 # Create ArgumentParser() object
 from tqdm import tqdm
 parser = argparse.ArgumentParser()
 # Add argument
-parser.add_argument('--data_path', required=False, default=r'H:\01-VTC\01-伯恩\训练用图\1108暗场\原图', help='path to original dataset')
-parser.add_argument('--dst_path', required=False, default=r'H:\01-VTC\01-伯恩\训练用图\1108暗场\5_folds', help='path to segment dataset')
+parser.add_argument('--data_path', required=False, default=r'I:\01-VTC\01-伯恩\训练用图\1129明场\原图', help='path to original dataset')
+parser.add_argument('--dst_path', required=False, default=r'I:\01-VTC\01-伯恩\训练用图\1129明场\5_folds', help='path to segment dataset')
 parser.add_argument('--num_folds', type=int, help='number of cross_validation folds', default=5)
 args = parser.parse_args()
 

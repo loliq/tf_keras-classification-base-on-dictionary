@@ -166,7 +166,10 @@ def convolutional_block(X, f, filters, stage, block, s=2, dropout_rate=None,regu
 
 # GRADED FUNCTION: ResNet50
 
-def ResNet50(input_shape=(64, 64, 3), classes=6, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
+def ResNet50(input_shape=(64, 64, 3),
+             classes=6,
+             dropout_rate=None,
+             regulizer=keras.regularizers.l2(0.00001)):
     """
     Implementation of the popular ResNet50 the following architecture:
     CONV2D -> BATCHNORM -> RELU -> MAXPOOL -> CONVBLOCK -> IDBLOCK*2 -> CONVBLOCK -> IDBLOCK*3

@@ -28,11 +28,11 @@
 - 目前有放一些focal_loss的函数
 - 为了代码编写便利，放了一些keras内置的loss函数的wrapper
 ## ultis
-- [cls_model.py]: 模型的实现类
-- [dataset.py]: 存放组合dataset数据通道的函数及实现(预处理也在这里做，因此预处理函数需要在这里调用)
-- [create_tf_record.py]: 给定文件夹和标签映射，生成tf_record文件
-- [k_folds_classification.py]： 用于给K-folds交叉验证分配图片集
-- [convert_to_pb]: 用于将存好的model_config(模型结构的.json文件) 和模型权重结合 转成'.pb'文件，同时输出节点信息供调用
+- [cls_model.py](https://github.com/loliq/tf_keras-classification-base-on-dictionary/blob/master/ultis/classification_model.py): 模型的实现类
+- [dataset.py](https://github.com/loliq/tf_keras-classification-base-on-dictionary/blob/master/ultis/dataset.py): 存放组合dataset数据通道的函数及实现(预处理也在这里做，因此预处理函数需要在这里调用)
+- [create_tf_record.py](https://github.com/loliq/tf_keras-classification-base-on-dictionary/blob/master/ultis/create_tf_record.py): 给定文件夹和标签映射，生成tf_record文件
+- [k_folds_classification.py](https://github.com/loliq/tf_keras-classification-base-on-dictionary/blob/master/ultis/k_folds_classification.py)： 用于给K-folds交叉验证分配图片集
+- [convert_to_pb.py](https://github.com/loliq/tf_keras-classification-base-on-dictionary/blob/master/ultis/convert_to_pb.py]): 用于将存好的model_config(模型结构的.json文件) 和模型权重结合 转成'.pb'文件，同时输出节点信息供调用
 --------------------------待更新, 定义preprocess函数，然后将函数以参数形式传入------------------
 ## models
 存放一些经典模型

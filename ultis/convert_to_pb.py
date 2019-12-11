@@ -8,10 +8,18 @@
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_weight_path', required=True, help='path of input h5 file')
-parser.add_argument('--input_config_path', required=True, help='path of input model config file(.json file)')
-parser.add_argument('--out_pb_path', required=True, help='path of output pb file (.pbfile)')
-parser.add_argument('--out_nodemsg_path', required=True, help='path of model node msg(.txt file)')
+parser.add_argument('--input_weight_path',
+                    default=r"E:\01-jupyter\08-tf2.0\05-easy_eager_classification\logs\ep003-loss0.066-val_loss0.068-val_acc0.445.h5",
+                    required=False, help='path of input h5 file')
+parser.add_argument('--input_config_path',
+                    default=r"E:\01-jupyter\08-tf2.0\05-easy_eager_classification\logs\ DenseNet_lighter_config.json",
+                    required=False, help='path of input model config file(.json file)')
+parser.add_argument('--out_pb_path',
+                    default=r"E:\01-jupyter\08-tf2.0\05-easy_eager_classification\logs\tmp.pb",
+                    required=False, help='path of output pb file (.pbfile)')
+parser.add_argument('--out_nodeName_path',
+                    default=r"E:\01-jupyter\08-tf2.0\05-easy_eager_classification\logs\tmp.txt",
+                    required=False, help='path of model node msg(.txt file)')
 
 args = parser.parse_args()
 
@@ -47,7 +55,7 @@ def keras_model_to_frozen_graph(model_config, model_weight, pb_file_path):
     session = tf.keras.backend.get_session()
     freeze_graph(session.graph, session, [out.op.name for out in model.outputs], model_weight)
 
-def output_node_name(model_path,out_nodemsg_path, print_all=False):
+def write_node_name(model_path,out_nodemsg_path, print_all=False):
     """
      print input and output name
     :param model_path: path of pb file
@@ -75,4 +83,5 @@ if __name__ == '__main__':
     keras_model_to_frozen_graph(model_config=args.input_config_path,
                                 model_weight=args.input_weight_path,
                                 pb_file_path=args.out_pb_path)
+    write_node_name(model_path=args.out_pb_path, out_nodemsg_path=args.out_nodeName_path)
 

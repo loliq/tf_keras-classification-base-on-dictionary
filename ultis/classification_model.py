@@ -175,7 +175,11 @@ class cls_model(object):
             return lr
 
     def train(self):
-        # TODO 配置网络训练参数
+        # 存下网络配置
+        json_config = self.model.to_json()
+        with open(self.config['work_dir'] + '/' + self.config['model_config']['type'] + '_config.json', 'w') as json_file:
+            json_file.write(json_config)
+
         train_dataset, val_dataset = self._get_data()
         self.history = self.model.fit(train_dataset,
                                       initial_epoch=0,
@@ -184,7 +188,7 @@ class cls_model(object):
                                       validation_data=val_dataset
                                       )
         self.model.save_weights(self.config['work_dir'] + "/final_epoch.h5")
-        self._plot_train_msg()
+        self._plot_train_msg(self.config['work_dir'])
 
     def _get_class_num(self):
         """
@@ -194,12 +198,14 @@ class cls_model(object):
         # class_num_dict 是
         class_num_dict = {}
         # label_map是文件夹名称对应的缺陷的编号
-        for folder in os.listdir(self.config.train_folder_path):
-            if os.path.isdir(os.path.join(self.config.train_folder_path, folder)):
+        for folder in os.listdir(self.config['data']['train']['image_dir']):
+            if os.path.isdir(os.path.join(self.config['data']['train']['image_dir'], folder)):
                 if self.label_map[folder] in class_num_dict:
-                    class_num_dict[self.label_map[folder]] += len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
+                    class_num_dict[self.label_map[folder]] +=\
+                        len(os.listdir(os.path.join(self.config['data']['train']['image_dir'], folder)))
                 else:
-                    class_num_dict[self.label_map[folder]] = len(os.listdir(os.path.join(self.config.train_folder_path, folder)))
+                    class_num_dict[self.label_map[folder]]\
+                        = len(os.listdir(os.path.join(self.config['data']['train']['image_dir'], folder)))
         print(class_num_dict)
         keys = list(class_num_dict.keys())
         keys.sort()  # 排序
@@ -212,7 +218,7 @@ class cls_model(object):
             label_map = json.loads(js)
         return label_map
 
-    def _plot_train_msg(self):
+    def _plot_train_msg(self, save_path):
         acc = self.history.history['categorical_accuracy']
         val_acc = self.history.history['val_categorical_accuracy']
 
@@ -238,7 +244,7 @@ class cls_model(object):
         plt.legend(loc='upper right')
         plt.title('Training and Validation Loss')
         plt.xlabel('epoch')
-        plt.savefig(self.config.logdir + "/train_line.jpg")
+        plt.savefig(save_path + "/train_msg.jpg")
         plt.show()
 
     def test_image(self, image_path):
@@ -281,12 +287,12 @@ class cls_model(object):
                 plt.figure()
                 plt.imshow(raw_image[0, ...])
                 plt.title("label is{0}, pred is {1}".format(label_dict[y_true[0]], label_dict[y_pred[0]]))
-                save_path = os.path.join(self.config.logdir, 'wrong classification')
+                save_path = os.path.join(self.config['work_dir'], 'wrong classification')
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
                 plt.savefig(save_path + '/{}.png'.format(index))
-        label_name = [str(i) for i in range(self.config.class_num)]
-        self._plot_confusion_matrix(label_name, gt, y_pred)
+        label_name = [str(i) for i in range(self.config['model_config']['class_num'])]
+        self._plot_confusion_matrix(label_name, save_path=self.config['work_dir'], y_true=gt, y_pred=y_pred)
 
 
 
@@ -295,14 +301,14 @@ class cls_model(object):
             with graph.as_default():
                 graphdef_inf = tf.graph_util.remove_training_nodes(graph.as_graph_def())
                 graphdef_frozen = tf.graph_util.convert_variables_to_constants(session, graphdef_inf, output_node_names)
-                graph_io.write_graph(graphdef_frozen, self.config.logdir, os.path.basename(model_name) + ".pb", as_text=False)
+                graph_io.write_graph(graphdef_frozen, self.config['work_dir'], os.path.basename(model_name) + ".pb", as_text=False)
 
         session = tf.keras.backend.get_session()
         freeze_graph(session.graph, session, [out.op.name for out in self.model.outputs], pb_name)
         print("freezing end")
 
 
-    def _plot_confusion_matrix(self,labels, y_true, y_pred,fontsize=10, title="Confusion Matrix"):
+    def _plot_confusion_matrix(self,labels, save_path, y_true, y_pred,fontsize=10, title="Confusion Matrix"):
         """
         输入标签名称，输出混淆矩阵的图
         :param labels:
@@ -343,6 +349,6 @@ class cls_model(object):
         # show confusion matrix
         plt.show()
         # save_confusion matrix
-        plt.savefig(self.config.logdir + "/train_line.jpg")
+        plt.savefig(save_path + "/train_line.jpg")
 
 

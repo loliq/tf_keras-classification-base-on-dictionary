@@ -25,7 +25,7 @@ parser.add_argument('--out_dir', required=True, help='folder path to save tf_rec
 parser.add_argument('--label_map_path', required=True, help='label map of folders')
 parser.add_argument('--resize_height', type=int, help='number of dataset', default=224)
 parser.add_argument('--resize_width', type=int, help='number of dataset', default=224)
-parser.add_argument('--resize_channel', type=int, help='number of dataset', default=224)
+parser.add_argument('--resize_channel', type=int, help='number of dataset', default=1)
 args = parser.parse_args()
 
 def fixed_ratio_resize(image, input_shape):

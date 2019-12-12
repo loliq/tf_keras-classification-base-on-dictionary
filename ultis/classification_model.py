@@ -52,17 +52,18 @@ class cls_model(object):
         print(val_file_names)
         # 对于tf.reshape。第三维用计算的方式填补，否则可能会报错
         train_dataset = make_dataset_tfrecord(filenames=train_file_names,
-                                                   batchsize=self.config['train_config']['batch_size'],
-                                                   is_training=True,
-                                                   classes_num=self.config['model_config']['class_num'],
-                                                   resize_shape=[self.config['model_config']['input_shape'][0],
-                                                                 self.config['model_config']['input_shape'][1], -1])
+                                              batchsize=self.config['train_config']['batch_size'],
+                                              is_training=True,
+                                              classes_num=self.config['model_config']['classes'],
+                                              resize_shape=[self.config['model_config']['input_shape'][0],
+                                              self.config['model_config']['input_shape'][1], -1])
         val_dataset = make_dataset_tfrecord(filenames=val_file_names,
-                                                 batchsize=self.config['train_config']['batch_size'],
-                                                 is_training=False,
-                                                 classes_num=self.config['model_config']['class_num'],
-                                                 resize_shape=[self.config['model_config']['input_shape'][0],
-                                                               self.config['model_config']['input_shape'][1], -1])
+                                            batchsize=self.config['train_config']['batch_size'],
+                                            is_training=False,
+                                            classes_num=self.config['model_config']['classes'],
+                                            resize_shape=[self.config['model_config']['input_shape'][0],
+                                            self.config['model_config']['input_shape'][1], -1])
+
         self.label_map = self._get_label_map(self.config['data']['train']['label_path'])
         return train_dataset, val_dataset
 
@@ -73,29 +74,13 @@ class cls_model(object):
         """
         if self.config['type'] == 'DenseNet':
             from models import DenseNet
-            if self.config['model_config']['type'] == 'DenseNet_lighter':
-                model_func = DenseNet.DenseNet_lighter
-            if self.config['model_config']['type'] == 'DenseNet121':
-                model_func = DenseNet.DenseNet121
-            self.model = model_func(input_shape=self.config['model_config']['input_shape'],
-                                    classes=self.config['model_config']['class_num'],
-                                    nb_filter=self.config['model_config']['nb_filter'],
-                                    growth_rate=self.config['model_config']['growth_rate'],
-                                    dropout_rate=self.config['model_config']['dropout_rate'],
-                                    l2_regularizer_weight=self.config['model_config']['l2_regularizer_weight'],
-                                    reduction=self.config['model_config']['reduce_rate'])
+            model_object = DenseNet.DenseNet(self.config['model_config'])
         if self.config['type'] == 'ResNet':
             from models import ResNet
-            if self.config['model_config']['type'] == 'ResNet50':
-                model_func = ResNet.ResNet50
-            if self.config['model_config']['type'] == 'ResNet34':
-                model_func = ResNet.ResNet34
-            if self.config['model_config']['type'] == 'ResNet18':
-                model_func = ResNet.ResNet18
-            self.model = model_func(input_shape=self.config['model_config']['input_shape'],
-                                    classes=self.config['model_config']['class_num'],
-                                    dropout_rate=self.config['model_config']['dropout_rate'],
-                                    regulizer=keras.regularizers.l2(self.config['model_config']['l2_regularizer_weight']))
+            model_object = ResNet.ResNet(self.config['model_config'])
+        self.model = model_object.constuct_model()
+
+
     def _get_loss_obect(self):
         """
         通过配置的定义配置损失函数

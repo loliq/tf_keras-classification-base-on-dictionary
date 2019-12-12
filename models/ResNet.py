@@ -8,14 +8,14 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Input, Add, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D, Dropout
+from tensorflow.keras.layers import Input, Add, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, \
+    AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D, Dropout
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras import Model
 
-
 # TODO 设置正则化系数
 global_regulizer = keras.regularizers.l2(0.00001)
-dense_regulizer= keras.regularizers.l2(0.0001)
+dense_regulizer = keras.regularizers.l2(0.0001)
 
 
 # GRADED FUNCTION: identity_block
@@ -85,7 +85,7 @@ def identity_block(X, f, filters, stage, block, dropout_rate=None, regulizer=ker
 
 # GRADED FUNCTION: convolutional_block
 
-def convolutional_block(X, f, filters, stage, block, s=2, dropout_rate=None,regulizer=keras.regularizers.l2(0.00001)):
+def convolutional_block(X, f, filters, stage, block, s=2, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
     """
     Implementation of the convolutional block as defined in Figure 4
 
@@ -166,86 +166,8 @@ def convolutional_block(X, f, filters, stage, block, s=2, dropout_rate=None,regu
 
 # GRADED FUNCTION: ResNet50
 
-def ResNet50(input_shape=(64, 64, 3),
-             classes=6,
-             dropout_rate=None,
-             regulizer=keras.regularizers.l2(0.00001)):
-    """
-    Implementation of the popular ResNet50 the following architecture:
-    CONV2D -> BATCHNORM -> RELU -> MAXPOOL -> CONVBLOCK -> IDBLOCK*2 -> CONVBLOCK -> IDBLOCK*3
-    -> CONVBLOCK -> IDBLOCK*5 -> CONVBLOCK -> IDBLOCK*2 -> AVGPOOL -> TOPLAYER
 
-    Arguments:
-    input_shape -- shape of the images of the dataset
-    classes -- integer, number of classes
-
-    Returns:
-    model -- a Model() instance in Keras
-    """
-
-    # Define the input as a tensor with shape input_shape
-    X_input = Input(input_shape)
-
-    # Zero-Padding
-    X = ZeroPadding2D((3, 3))(X_input)
-
-    # Stage 1
-    X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
-    X = BatchNormalization(axis=3, name='bn_conv1')(X)
-    X = Activation('relu')(X)
-    X = MaxPooling2D((3, 3), strides=(2, 2))(X)
-
-    # Stage 2
-    X = convolutional_block(X, f=3, filters=[64, 64, 256], stage=2, block='a', s=1, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, 3, [64, 64, 256], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, 3, [64, 64, 256], stage=2, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
-
-    ### START CODE HERE ###
-
-    # Stage 3 (≈4 lines)
-    # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
-    # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
-    X = convolutional_block(X, f=3, filters=[128, 128, 512], stage=3, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='d', dropout_rate=dropout_rate, regulizer=regulizer)
-
-    # Stage 4 (≈6 lines)
-    # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
-    # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
-    X = convolutional_block(X, f=3, filters=[256, 256, 1024], block='a', stage=4, s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 1024], block='b', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 1024], block='c', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 1024], block='d', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 1024], block='e', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 1024], block='f', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-
-    # Stage 5 (≈3 lines)
-    # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
-    # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
-    X = convolutional_block(X, f=3, filters=[512, 512, 2048], stage=5, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-
-    # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
-    X = identity_block(X, f=3, filters=[256, 256, 2048], stage=5, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block(X, f=3, filters=[256, 256, 2048], stage=5, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
-
-    # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
-    # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
-    X = AveragePooling2D(pool_size=(2, 2))(X)
-
-    ### END CODE HERE ###
-
-    # output layer
-    X = Flatten()(X)
-    X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
-
-    # Create model
-    model = Model(inputs=X_input, outputs=X, name='ResNet50')
-
-    return model
-
-
-def identity_block_2(X, f, filters, stage, block, dropout_rate=None,regulizer=keras.regularizers.l2(0.00001)):
+def identity_block_2(X, f, filters, stage, block, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
     """
     适用于ResNet 18 和 34 的identity_block
     :param X:
@@ -266,7 +188,7 @@ def identity_block_2(X, f, filters, stage, block, dropout_rate=None,regulizer=ke
     X_shortcut = X
 
     # First component of main path
-    X = Conv2D(filters=F1, kernel_size=(f, f), strides=(1, 1), padding='valid', name=conv_name_base + '2a',
+    X = Conv2D(filters=F1, kernel_size=(f, f), strides=(1, 1), padding='same', name=conv_name_base + '2a',
                kernel_initializer=glorot_uniform(seed=0), kernel_regularizer=regulizer)(X)
     if dropout_rate:
         X = Dropout(dropout_rate)(X)
@@ -287,7 +209,8 @@ def identity_block_2(X, f, filters, stage, block, dropout_rate=None,regulizer=ke
 
     return X
 
-def convolutional_block2(X, f, filters, stage, block, s=2, dropout_rate=None,regulizer=keras.regularizers.l2(0.00001)):
+
+def convolutional_block2(X, f, filters, stage, block, s=2, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
     """
     适用于 resnet 18 和 resnet50 的convolutional_block
     :param X:
@@ -321,7 +244,7 @@ def convolutional_block2(X, f, filters, stage, block, s=2, dropout_rate=None,reg
     ### START CODE HERE ###
 
     # Second component of main path (≈3 lines)
-    X = Conv2D(F2, (f, f), strides=(1, 1), name=conv_name_base + '2b', padding='valid',
+    X = Conv2D(F2, (f, f), strides=(1, 1), name=conv_name_base + '2b', padding='same',
                kernel_initializer=glorot_uniform(seed=0), kernel_regularizer=regulizer)(X)
     if dropout_rate:
         X = Dropout(dropout_rate)(X)
@@ -340,118 +263,259 @@ def convolutional_block2(X, f, filters, stage, block, s=2, dropout_rate=None,reg
 
     return X
 
-def ResNet_34(input_shape=(64, 64, 3), classes=6, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
-    # Define the input as a tensor with shape input_shape
-    X_input = Input(input_shape)
 
-    # Zero-Padding
-    X = ZeroPadding2D((3, 3))(X_input)
+class ResNet(object):
+    def __init__(self, kwargs):
+        self.__dict__.update(kwargs)
 
-    # Stage 1
-    X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
-    X = BatchNormalization(axis=3, name='bn_conv1')(X)
-    X = Activation('relu')(X)
-    X = MaxPooling2D((3, 3), strides=(2, 2))(X)
+    def constuct_model(self):
+        if self.type == "ResNet_34":
+            model_func = self.ResNet_34
+        if self.type == "ResNet_18":
+            model_func = self.ResNet_18
+        if self.type == "ResNet50":
+            model_func = self.ResNet50
+        model = model_func(input_shape=self.input_shape,
+                           classes=self.classes,
+                           dropout_rate=self.dropout_rate,
+                           l2_regularizer_weight=self.l2_regularizer_weight)
 
-    # Stage 2
-    X = convolutional_block2(X, f=3, filters=[64, 64], stage=2, block='a', s=1, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, 3, [64, 64], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, 3, [64, 64], stage=2, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
+        return model
 
-    ### START CODE HERE ###
+    def ResNet_34(self,
+                  input_shape=(64, 64, 3),
+                  classes=6,
+                  dropout_rate=None,
+                  l2_regularizer_weight=0.0001):
+        # Define the input as a tensor with shape input_shape
+        X_input = Input(input_shape)
+        regulizer = keras.regularizers.l2(l2_regularizer_weight)
 
-    # Stage 3 (≈4 lines)
-    # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
-    # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
-    X = convolutional_block2(X, f=3, filters=[128, 128], stage=3, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='d', dropout_rate=dropout_rate, regulizer=regulizer)
+        # Zero-Padding
+        X = ZeroPadding2D((3, 3))(X_input)
 
-    # Stage 4 (≈6 lines)
-    # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
-    # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
-    X = convolutional_block2(X, f=3, filters=[256, 256], block='a', stage=4, s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='b', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='c', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='d', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='e', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='f', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
+        # Stage 1
+        X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
+        X = BatchNormalization(axis=3, name='bn_conv1')(X)
+        X = Activation('relu')(X)
+        X = MaxPooling2D((3, 3), strides=(2, 2))(X)
 
-    # Stage 5 (≈3 lines)
-    # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
-    # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
-    X = convolutional_block2(X, f=3, filters=[512, 512], stage=5, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
+        # Stage 2
+        X = convolutional_block2(X, f=3, filters=[64, 64], stage=2, block='a', s=1, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, 3, [64, 64], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
+        X = identity_block_2(X, 3, [64, 64], stage=2, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
 
-    # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
-    X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
+        ### START CODE HERE ###
 
-    # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
-    # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
-    X = AveragePooling2D(pool_size=(2, 2))(X)
+        # Stage 3 (≈4 lines)
+        # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
+        # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
+        X = convolutional_block2(X, f=3, filters=[128, 128], stage=3, block='a', s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='b', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='c', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='d', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
 
-    ### END CODE HERE ###
+        # Stage 4 (≈6 lines)
+        # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
+        # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
+        X = convolutional_block2(X, f=3, filters=[256, 256], block='a', stage=4, s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='b', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='c', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='d', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='e', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='f', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
 
-    # output layer
-    X = Flatten()(X)
-    X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
+        # Stage 5 (≈3 lines)
+        # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
+        # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
+        X = convolutional_block2(X, f=3, filters=[512, 512], stage=5, block='a', s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
 
-    # Create model
-    model = Model(inputs=X_input, outputs=X, name='ResNet34')
+        # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
+        X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='b', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='c', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
 
-    return model
+        # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
+        # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
+        X = AveragePooling2D(pool_size=(2, 2))(X)
 
-def ResNet_18(input_shape=(64, 64, 3), classes=6, dropout_rate=None, regulizer=keras.regularizers.l2(0.00001)):
-    # Define the input as a tensor with shape input_shape
-    X_input = Input(input_shape)
+        ### END CODE HERE ###
 
-    # Zero-Padding
-    X = ZeroPadding2D((3, 3))(X_input)
+        # output layer
+        X = Flatten()(X)
+        X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
 
-    # Stage 1
-    X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
-    X = BatchNormalization(axis=3, name='bn_conv1')(X)
-    X = Activation('relu')(X)
-    X = MaxPooling2D((3, 3), strides=(2, 2))(X)
+        # Create model
+        model = Model(inputs=X_input, outputs=X, name='ResNet34')
 
-    # Stage 2
-    X = convolutional_block2(X, f=3, filters=[64, 64], stage=2, block='a', s=1, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, 3, [64, 64], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
+        return model
 
-    ### START CODE HERE ###
+    def ResNet_18(self,
+                  input_shape=(64, 64, 3),
+                  classes=6,
+                  dropout_rate=None,
+                  l2_regularizer_weight=0.0001):
+        # Define the input as a tensor with shape input_shape
+        X_input = Input(input_shape)
+        regulizer = keras.regularizers.l2(l2_regularizer_weight)
+        # Zero-Padding
+        X = ZeroPadding2D((3, 3))(X_input)
 
-    # Stage 3 (≈4 lines)
-    # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
-    # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
-    X = convolutional_block2(X, f=3, filters=[128, 128], stage=3, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
+        # Stage 1
+        X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
+        X = BatchNormalization(axis=3, name='bn_conv1')(X)
+        X = Activation('relu')(X)
+        X = MaxPooling2D((3, 3), strides=(2, 2))(X)
 
-    # Stage 4 (≈6 lines)
-    # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
-    # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
-    X = convolutional_block2(X, f=3, filters=[256, 256], block='a', stage=4, s=2, dropout_rate=dropout_rate, regulizer=regulizer)
-    X = identity_block_2(X, f=3, filters=[256, 256], block='b', stage=4, dropout_rate=dropout_rate, regulizer=regulizer)
+        # Stage 2
+        X = convolutional_block2(X, f=3, filters=[64, 64], stage=2, block='a', s=1, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, 3, [64, 64], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
 
-    # Stage 5 (≈3 lines)
-    # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
-    # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
-    X = convolutional_block2(X, f=3, filters=[512, 512], stage=5, block='a', s=2, dropout_rate=dropout_rate, regulizer=regulizer)
+        ### START CODE HERE ###
 
-    # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
-    X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
-    # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
-    # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
-    X = AveragePooling2D(pool_size=(2, 2))(X)
+        # Stage 3 (≈4 lines)
+        # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
+        # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
+        X = convolutional_block2(X, f=3, filters=[128, 128], stage=3, block='a', s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[128, 128], stage=3, block='b', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
 
-    ### END CODE HERE ###
+        # Stage 4 (≈6 lines)
+        # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
+        # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
+        X = convolutional_block2(X, f=3, filters=[256, 256], block='a', stage=4, s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
+        X = identity_block_2(X, f=3, filters=[256, 256], block='b', stage=4, dropout_rate=dropout_rate,
+                             regulizer=regulizer)
 
-    # output layer
-    X = Flatten()(X)
-    X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
+        # Stage 5 (≈3 lines)
+        # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
+        # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
+        X = convolutional_block2(X, f=3, filters=[512, 512], stage=5, block='a', s=2, dropout_rate=dropout_rate,
+                                 regulizer=regulizer)
 
-    # Create model
-    model = Model(inputs=X_input, outputs=X, name='ResNet18')
+        # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
+        X = identity_block_2(X, f=3, filters=[512, 512], stage=5, block='b', dropout_rate=dropout_rate,
+                             regulizer=regulizer)
+        # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
+        # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
+        X = AveragePooling2D(pool_size=(2, 2))(X)
 
-    return model
+        ### END CODE HERE ###
 
+        # output layer
+        X = Flatten()(X)
+        X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
+
+        # Create model
+        model = Model(inputs=X_input, outputs=X, name='ResNet18')
+
+        return model
+
+    def ResNet50(self,
+                 input_shape=(64, 64, 3),
+                 classes=6,
+                 dropout_rate=None,
+                 l2_regularizer_weight=0.0001):
+        """
+        Implementation of the popular ResNet50 the following architecture:
+        CONV2D -> BATCHNORM -> RELU -> MAXPOOL -> CONVBLOCK -> IDBLOCK*2 -> CONVBLOCK -> IDBLOCK*3
+        -> CONVBLOCK -> IDBLOCK*5 -> CONVBLOCK -> IDBLOCK*2 -> AVGPOOL -> TOPLAYER
+
+        Arguments:
+        input_shape -- shape of the images of the dataset
+        classes -- integer, number of classes
+
+        Returns:
+        model -- a Model() instance in Keras
+        """
+
+        # Define the input as a tensor with shape input_shape
+        X_input = Input(input_shape)
+        regulizer = keras.regularizers.l2(l2_regularizer_weight)
+        # Zero-Padding
+        X = ZeroPadding2D((3, 3))(X_input)
+
+        # Stage 1
+        X = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', kernel_initializer=glorot_uniform(seed=0))(X)
+        X = BatchNormalization(axis=3, name='bn_conv1')(X)
+        X = Activation('relu')(X)
+        X = MaxPooling2D((3, 3), strides=(2, 2))(X)
+
+        # Stage 2
+        X = convolutional_block(X, f=3, filters=[64, 64, 256], stage=2, block='a', s=1, dropout_rate=dropout_rate,
+                                regulizer=regulizer)
+        X = identity_block(X, 3, [64, 64, 256], stage=2, block='b', dropout_rate=dropout_rate, regulizer=regulizer)
+        X = identity_block(X, 3, [64, 64, 256], stage=2, block='c', dropout_rate=dropout_rate, regulizer=regulizer)
+
+        ### START CODE HERE ###
+
+        # Stage 3 (≈4 lines)
+        # The convolutional block uses three set of filters of size [128,128,512], "f" is 3, "s" is 2 and the block is "a".
+        # The 3 identity blocks use three set of filters of size [128,128,512], "f" is 3 and the blocks are "b", "c" and "d".
+        X = convolutional_block(X, f=3, filters=[128, 128, 512], stage=3, block='a', s=2, dropout_rate=dropout_rate,
+                                regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='b', dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='c', dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[128, 128, 512], stage=3, block='d', dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+
+        # Stage 4 (≈6 lines)
+        # The convolutional block uses three set of filters of size [256, 256, 1024], "f" is 3, "s" is 2 and the block is "a".
+        # The 5 identity blocks use three set of filters of size [256, 256, 1024], "f" is 3 and the blocks are "b", "c", "d", "e" and "f".
+        X = convolutional_block(X, f=3, filters=[256, 256, 1024], block='a', stage=4, s=2, dropout_rate=dropout_rate,
+                                regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 1024], block='b', stage=4, dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 1024], block='c', stage=4, dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 1024], block='d', stage=4, dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 1024], block='e', stage=4, dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 1024], block='f', stage=4, dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+
+        # Stage 5 (≈3 lines)
+        # The convolutional block uses three set of filters of size [512, 512, 2048], "f" is 3, "s" is 2 and the block is "a".
+        # The 2 identity blocks use three set of filters of size [256, 256, 2048], "f" is 3 and the blocks are "b" and "c".
+        X = convolutional_block(X, f=3, filters=[512, 512, 2048], stage=5, block='a', s=2, dropout_rate=dropout_rate,
+                                regulizer=regulizer)
+
+        # filters should be [256, 256, 2048], but it fail to be graded. Use [512, 512, 2048] to pass the grading
+        X = identity_block(X, f=3, filters=[256, 256, 2048], stage=5, block='b', dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+        X = identity_block(X, f=3, filters=[256, 256, 2048], stage=5, block='c', dropout_rate=dropout_rate,
+                           regulizer=regulizer)
+
+        # AVGPOOL (≈1 line). Use "X = AveragePooling2D(...)(X)"
+        # The 2D Average Pooling uses a window of shape (2,2) and its name is "avg_pool".
+        X = AveragePooling2D(pool_size=(2, 2))(X)
+
+        ### END CODE HERE ###
+
+        # output layer
+        X = Flatten()(X)
+        X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
+
+        # Create model
+        model = Model(inputs=X_input, outputs=X, name='ResNet50')
+
+        return model

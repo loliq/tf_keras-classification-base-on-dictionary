@@ -11,13 +11,16 @@ model = dict(
     # 不同的模型的参数不一样
     model_config=dict(
         type='DenseNet_lighter',  #模型类中的较小的构造模型的函数
+        nb_dense_block=4,
+        nb_layers=[2, 4, 6, 4],
         input_shape=[224, 224, 1],
-        class_num=5,
-        nb_filter=32,
+        classes=5,
         growth_rate=12,
+        nb_filter=32,
+        reduction=0.8,
         dropout_rate=0.2,
         l2_regularizer_weight=0.0001,
-        reduce_rate=0.8
+        weight_decay=1e-4
     ),
     # 训练参数设置
     train_config=dict(

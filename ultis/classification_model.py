@@ -13,7 +13,7 @@ import numpy as np
 import os
 import glob
 from ultis.dataset import make_dataset_from_filenames, preprocess_image, make_dataset_tfrecord, anti_process
-from ultis.losses_and_metrics import multi_category_focal_loss_class_num, multi_category_focal_loss2
+from ultis.losses_and_metrics import get_loss_obj
 from PIL import Image
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
@@ -80,31 +80,6 @@ class cls_model(object):
             model_object = ResNet.ResNet(self.config['model_config'])
         self.model = model_object.constuct_model()
 
-
-    def _get_loss_obect(self):
-        """
-        通过配置的定义配置损失函数
-        :return:
-        """
-        # TODO 增加loss的选择
-        loss_name = self.config['train_config']['loss']['loss_name']
-        loss_object = None
-        from ultis import losses_and_metrics
-        if loss_name == 'multi_category_focal_loss_class_num':
-            loss_object = losses_and_metrics.multi_category_focal_loss_class_num(
-                classes_num=self.config['train_config']['loss']['class_num_distribution'],
-                alpha=self.config['train_config']['loss']['alpha'],
-                gamma=self.config['train_config']['loss']['gamma'])
-        if loss_name == 'multi_category_focal_loss2':
-            loss_object = losses_and_metrics.multi_category_focal_loss2(
-                alpha=self.config['train_config']['loss']['alpha'],
-                gamma=self.config['train_config']['loss']['gamma'])
-        if loss_name == "categorical_loss":
-            loss_object = losses_and_metrics.CategoricalCrossentropy(
-                from_logits=self.config['train_config']['from_logits'],
-                label_smoothing=self.config['train_config']['label_smoothing'])
-        return loss_object
-
     def _get_optimizer(self):
         optimizer_name = self.config['train_config']['optimizer']['type']
         if optimizer_name == 'RMSprop':
@@ -138,7 +113,7 @@ class cls_model(object):
         else:
             self._get_model_archtecture()
         # compile 设置
-        loss_object = self._get_loss_obect()
+        loss_object = get_loss_obj(self.config['train_config']['loss'])
         optimizer = self._get_optimizer()
         self.model.compile(optimizer=optimizer,
                            loss=loss_object,

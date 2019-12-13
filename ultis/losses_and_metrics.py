@@ -13,6 +13,22 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
+def get_loss_obj(kwargs):
+        if kwargs['type'] == "multi_category_focal_loss_class_num":
+            return multi_category_focal_loss_class_num(classes_num=kwargs['class_num_distribution'],
+                                                       alpha=kwargs['alpha'],
+                                                       gamma=kwargs['gamma'])
+        if kwargs['type'] == 'multi_category_focal_loss2':
+            return multi_category_focal_loss2(alpha=kwargs['alpha'],
+                                              gamma=kwargs['gamma'])
+        if kwargs['type'] == 'categorical_crossentropy':
+            return keras.losses.CategoricalCrossentropy(
+                from_logits=kwargs['from_logits'],
+                label_smoothing=kwargs['label_smoothing'])
+        if kwargs['type'] == 'binarycrossentropy':
+            return keras.losses.BinaryCrossentropy(from_logits=kwargs['from_logits'],
+                                                   label_smoothing=kwargs['label_smoothing'])
+
 def binary_focal_loss(gamma=2, alpha=0.25):
     """
     Binary form of focal loss.

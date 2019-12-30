@@ -9,7 +9,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import tensorflow as tf
 
-tf.enable_eager_execution()
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Add, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, \

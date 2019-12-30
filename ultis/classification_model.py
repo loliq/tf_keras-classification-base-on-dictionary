@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 
-tf.enable_eager_execution()
 
 # 设置中文字体和负号正常显示
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -136,17 +135,24 @@ class cls_model(object):
 
     def train(self):
         # 存下网络配置
+        validation_step = 0
+        train_step = 0
         json_config = self.model.to_json()
         with open(self.config['work_dir'] + '/' + self.config['model_config']['type'] + '_config.json', 'w') as json_file:
             json_file.write(json_config)
 
         train_dataset, val_dataset = self._get_data()
+        for _, _ in val_dataset:
+            validation_step += 1
+        for _, _ in train_dataset:
+            train_step += 1
+
         self.history = self.model.fit(train_dataset,
                                       initial_epoch=0,
                                       epochs=self.config['train_config']['total_epoches'],
                                       callbacks=self.call_backs,
-                                      validation_data=val_dataset
-                                      )
+                                      validation_data=val_dataset,
+                                      validation_steps=validation_step)
         self.model.save_weights(self.config['work_dir'] + "/final_epoch.h5")
         self._plot_train_msg(self.config['work_dir'])
 

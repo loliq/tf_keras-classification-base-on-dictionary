@@ -15,7 +15,6 @@ from PIL import  Image
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-tf.enable_eager_execution()
 
 def compose_file_label(input_path, label_path):
     """
@@ -74,9 +73,9 @@ def _preprocess_function(image_decoded, label,class_num=2,is_training=True,resiz
     """
     tf_image = image_decoded
     # tf_image = tf.reshape(tf_image, [224, 224, 3])
-    if is_training:
-        tf_image = tf.image.random_flip_left_right(tf_image)
-        # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
+    # if is_training:
+    #     tf_image = tf.image.random_flip_left_right(tf_image)
+    #     # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
     # TODO 如何预处理图像
     tf_image = tf.cast(tf_image, tf.float32)
     tf_image = tf_image / 255.

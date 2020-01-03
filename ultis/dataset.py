@@ -206,3 +206,5 @@ def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, classes_num
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.batch(batchsize)
     return dataset
+
+####  另外一种从文件夹中读取图片并且做标签

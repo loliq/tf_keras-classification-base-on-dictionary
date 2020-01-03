@@ -8,8 +8,8 @@ import re
 from tqdm import tqdm
 parser = argparse.ArgumentParser()
 # Add argument
-parser.add_argument('--data_path', required=False, default=r'I:\01-VTC\01-伯恩\训练用图\1129明场\原图', help='path to original dataset')
-parser.add_argument('--dst_path', required=False, default=r'I:\01-VTC\01-伯恩\训练用图\1129明场\5_folds', help='path to segment dataset')
+parser.add_argument('--data_path', required=True,  help='path to original dataset')
+parser.add_argument('--dst_path', required=True,  help='path to segment dataset')
 parser.add_argument('--num_folds', type=int, help='number of cross_validation folds', default=5)
 args = parser.parse_args()
 

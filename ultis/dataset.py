@@ -169,7 +169,7 @@ def fixed_ratio_resize(image, input_shape):
 
 # TODO TF-Record
 
-def parse_single_exmp(serialized_example,process_func=None,is_training=True, label_num=2,
+def parse_train_single_exmp(serialized_example,process_func=None,is_training=True, label_num=2,
                       resize_shape=None):
     """
     解析tf.record
@@ -189,19 +189,47 @@ def parse_single_exmp(serialized_example,process_func=None,is_training=True, lab
     tf_label = tf.cast(features['label'], tf.int32)
     # TODO 图像大小不同的时候需要修改
     tf_image = tf.reshape(tf_image, resize_shape)  # 设置图像的维度
-    if is_training:
-        # TODO 这里做训练时候的数据增强
-        tf_image = tf.image.random_flip_left_right(tf_image)
-        # tf_image = tf.image.random_contrast(tf_image, 0.8, 1.2)
+    # TODO 训练时的数据增扩
+    tf_image = tf.image.random_flip_left_right(tf_image)
     tf_image = preprocess_image(tf_image)
     tf_label = tf.one_hot(tf_label, label_num, 1, 0)  #二分类只需要 0 和1
     return tf_image, tf_label
 
-def make_dataset_tfrecord(filenames,batchsize=8, is_training = True, classes_num=2, resize_shape=[224,224,3]):
+def parse_test_single_exmp(serialized_example,process_func=None,is_training=True, label_num=2,
+                      resize_shape=None):
+    """
+    解析tf.record
+    :param serialized_example:
+    :param opposite: 是否将图片取反
+    :return:
+    """
+    # 解序列化对象
+    features = tf.io.parse_single_example(
+        serialized_example,
+        features={
+            'image_raw': tf.io.FixedLenFeature([], tf.string),
+            'label': tf.io.FixedLenFeature([], tf.int64)
+        }
+    )
+    tf_image = tf.io.decode_raw(features['image_raw'],tf.uint8)#获得图像原始的数据
+    tf_label = tf.cast(features['label'], tf.int32)
+    # TODO 图像大小不同的时候需要修改
+    tf_image = tf.reshape(tf_image, resize_shape)  # 设置图像的维度
+    tf_image = preprocess_image(tf_image)
+    tf_label = tf.one_hot(tf_label, label_num, 1, 0)  #二分类只需要 0 和1
+    return tf_image, tf_label
+
+def make_train_dataset_tfrecord(filenames,batchsize=8,classes_num=2, resize_shape=[224,224,3]):
     dataset = tf.data.TFRecordDataset(filenames)
     # lambda x 取到dataset的serial_sample对象
-    dataset = dataset.map(lambda x: parse_single_exmp(x, is_training=is_training, label_num=classes_num, resize_shape=resize_shape))
-    if is_training:
-        dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.map(lambda x: parse_train_single_exmp(x,label_num=classes_num, resize_shape=resize_shape))
+    dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.batch(batchsize)
+    return dataset
+
+def make_test_dataset_tfrecord(filenames,batchsize=8, classes_num=2, resize_shape=[224,224,3]):
+    dataset = tf.data.TFRecordDataset(filenames)
+    # lambda x 取到dataset的serial_sample对象
+    dataset = dataset.map(lambda x: parse_test_single_exmp(x, label_num=classes_num, resize_shape=resize_shape))
     dataset = dataset.batch(batchsize)
     return dataset

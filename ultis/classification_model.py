@@ -12,7 +12,7 @@ from tensorflow import keras
 import numpy as np
 import os
 import glob
-from ultis.dataset import make_dataset_from_filenames, preprocess_image, make_dataset_tfrecord, anti_process
+from ultis.dataset import make_dataset_from_filenames, preprocess_image, make_train_dataset_tfrecord, make_test_dataset_tfrecord, anti_process
 from ultis.losses_and_metrics import get_loss_obj
 from PIL import Image
 import tensorflow as tf
@@ -50,18 +50,16 @@ class cls_model(object):
         val_file_names = glob.glob(os.path.join(self.config['data']['val']['image_dir'], '*'))
         print(val_file_names)
         # 对于tf.reshape。第三维用计算的方式填补，否则可能会报错
-        train_dataset = make_dataset_tfrecord(filenames=train_file_names,
-                                              batchsize=self.config['train_config']['batch_size'],
-                                              is_training=True,
-                                              classes_num=self.config['model_config']['classes'],
-                                              resize_shape=[self.config['model_config']['input_shape'][0],
-                                              self.config['model_config']['input_shape'][1], -1])
-        val_dataset = make_dataset_tfrecord(filenames=val_file_names,
-                                            batchsize=self.config['train_config']['batch_size'],
-                                            is_training=False,
-                                            classes_num=self.config['model_config']['classes'],
-                                            resize_shape=[self.config['model_config']['input_shape'][0],
-                                            self.config['model_config']['input_shape'][1], -1])
+        train_dataset = make_train_dataset_tfrecord(filenames=train_file_names,
+                                                    batchsize=self.config['train_config']['batch_size'],
+                                                    classes_num=self.config['model_config']['classes'],
+                                                    resize_shape=[self.config['model_config']['input_shape'][0],
+                                                    self.config['model_config']['input_shape'][1], -1])
+        val_dataset = make_test_dataset_tfrecord(filenames=val_file_names,
+                                                 batchsize=self.config['train_config']['batch_size'],
+                                                 classes_num=self.config['model_config']['classes'],
+                                                 resize_shape=[self.config['model_config']['input_shape'][0],
+                                                 self.config['model_config']['input_shape'][1], -1])
 
         self.label_map = self._get_label_map(self.config['data']['train']['label_path'])
         return train_dataset, val_dataset

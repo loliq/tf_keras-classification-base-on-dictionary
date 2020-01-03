@@ -8,7 +8,7 @@ from ultis.classification_model import cls_model
 import importlib
 parser = argparse.ArgumentParser()
 parser.add_argument('--config_path', required=False,
-                    default=r'configs\light_densenet.py',
+                    default=r'configs\ResNet18.py',
                     help='path of original dataset, which has train folder and val folder')
 args = parser.parse_args()
 

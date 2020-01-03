@@ -193,7 +193,7 @@ def identity_block_2(X, f, filters, stage, block, dropout_rate=None, regulizer=k
     if dropout_rate:
         X = Dropout(dropout_rate)(X)
     X = BatchNormalization(axis=3, name=bn_name_base + '2a')(X)
-    # X = Activation('relu')(X)
+    X = Activation('relu')(X)
 
     # Second component of main path (≈3 lines)
     X = Conv2D(F2, (f, f), strides=(1, 1), name=conv_name_base + '2b', padding='same',
@@ -201,8 +201,6 @@ def identity_block_2(X, f, filters, stage, block, dropout_rate=None, regulizer=k
     if dropout_rate:
         X = Dropout(dropout_rate)(X)
     X = BatchNormalization(axis=3, name=bn_name_base + '2b')(X)
-    X = Activation('relu')(X)
-
     # Final step: Add shortcut value to main path, and pass it through a RELU activation (≈2 lines)
     X = layers.add([X, X_shortcut])
     X = Activation('relu')(X)

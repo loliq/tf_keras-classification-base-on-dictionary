@@ -78,6 +78,10 @@ class cls_model(object):
         if self.config['type'] == 'ResNet':
             from models import ResNet
             model_object = ResNet.ResNet(self.config['model_config'])
+        if self.config['type'] == 'MobilenetV2':
+            from models import MobileNet
+            model_object = MobileNet.mobilenetV2(self.config['model_config'])
+
         self.model = model_object.constuct_model()
 
     def _get_optimizer(self):
